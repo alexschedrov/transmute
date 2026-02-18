@@ -14,7 +14,7 @@ class LLMService {
         UserDefaults.standard.string(forKey: "anthropicAPIKey") ?? ""
     }
 
-    func process(text: String, action: TextAction) async -> String {
+    func process(text: String, prompt: String) async -> String {
         guard !apiKey.isEmpty else {
             return "[Set your API key in Transmute settings]"
         }
@@ -29,7 +29,7 @@ class LLMService {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 4096,
             "messages": [
-                ["role": "user", "content": "\(action.prompt)\n\n\(text)"]
+                ["role": "user", "content": "\(prompt)\n\n\(text)"]
             ]
         ]
 

@@ -19,7 +19,7 @@ class HotkeyService {
         self.onTrigger = onTrigger
     }
 
-    func register() {
+    func register(retryCount: Int = 0) {
         let eventMask = (1 << CGEventType.keyDown.rawValue)
 
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
@@ -35,7 +35,13 @@ class HotkeyService {
             },
             userInfo: userInfo
         ) else {
-            print("⚠️ Failed to create event tap. Check Accessibility permissions.")
+            if retryCount < 10 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    self.register(retryCount: retryCount + 1)
+                }
+            } else {
+                print("⚠️ Failed to create event tap after retries. Check Accessibility permissions.")
+            }
             return
         }
 

@@ -12,28 +12,36 @@ class TransmutePanel {
     private static var panel: NSPanel?
 
     static func show() {
-        guard let text = AccessibilityService.getSelectedText() else {
-            // TODO: show a brief notification that no text is selected
-            print("No text selected")
-            return
+        print(">>> show() called")
+        Task {
+            print(">>> Task started, getting text...")
+            guard let text = await AccessibilityService.getSelectedText() else {
+                print(">>> No text selected")
+                return
+            }
+            print(">>> Got text: \(text.prefix(30))")
+            await MainActor.run {
+                print(">>> Showing panel")
+                showPanel(with: text)
+            }
         }
+    }
 
+    private static func showPanel(with text: String) {
         dismiss()
 
         let mouseLocation = NSEvent.mouseLocation
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 300),
-            styleMask: [.nonactivatingPanel, .hudWindow, .utilityWindow, .closable],
+            styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.level = .floating
-        panel.hidesOnDeactivate = true
-        panel.titlebarAppearsTransparent = true
-        panel.isMovableByWindowBackground = true
-        panel.animationBehavior = .utilityWindow
+        panel.level = .screenSaver
+        panel.hasShadow = true
+        panel.backgroundColor = .windowBackgroundColor
 
         // Position above cursor
         panel.setFrameOrigin(NSPoint(
@@ -46,8 +54,9 @@ class TransmutePanel {
             Task { await processAndReplace(text: text, action: action) }
         }
 
-        panel.contentView = NSHostingView(rootView: view)
-        panel.makeKeyAndOrderFront(nil)
+        let hostingView = NSHostingView(rootView: view)
+        panel.contentView = hostingView
+        panel.orderFrontRegardless()
         self.panel = panel
     }
 
@@ -57,7 +66,7 @@ class TransmutePanel {
     }
 
     private static func processAndReplace(text: String, action: TextAction) async {
-        let result = await LLMService.shared.process(text: text, action: action)
+        let result = await action.apply(to: text)
         await MainActor.run {
             AccessibilityService.replaceSelectedText(with: result)
         }
