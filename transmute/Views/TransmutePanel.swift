@@ -137,3 +137,8 @@ struct PanelContentView: View {
     }
 }
 
+#Preview {
+    PanelContentView(selectedText: "Test text") { TextAction in
+        print("Test action")
+    }
+}
