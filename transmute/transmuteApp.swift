@@ -14,7 +14,7 @@ struct transmuteApp: App {
     var body: some Scene {
         MenuBarExtra("Transmute", systemImage: "textformat.alt") {
             SettingsLink {
-                Text("Settings…")
+                Text("Settings")
             }
             .keyboardShortcut(",")
             Divider()
