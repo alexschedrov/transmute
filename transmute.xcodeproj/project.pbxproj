@@ -8,19 +8,50 @@
 
 /* Begin PBXBuildFile section */
 		AD69CB392F7CA43A0015EEEE /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = AD69CB362F7CA43A0015EEEE /* .gitignore */; };
-		AD69CB702F7DB39E0015EEEE /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = AD69CB6F2F7DB3990015EEEE /* README.md */; };
+		AD6DABFD2F82FF80003222DA /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = AD6DABFC2F82FF7C003222DA /* README.md */; };
+		AD6DAC172F847714003222DA /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = AD6DAC162F847714003222DA /* CLAUDE.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		AD2923162F452D9C00EC7529 /* transmute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = transmute.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD69CB362F7CA43A0015EEEE /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
-		AD69CB6F2F7DB3990015EEEE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		AD6DABFC2F82FF7C003222DA /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		AD6DAC162F847714003222DA /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.markdown; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AD6DABFA2F82FF70003222DA /* Exceptions for "docs" folder in "transmute" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Requirements.md,
+			);
+			target = AD2923152F452D9C00EC7529 /* transmute */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		AD6DABFB2F82FF70003222DA /* Exceptions for "docs" folder in "Compile Sources" phase from "transmute" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = AD2923122F452D9C00EC7529 /* Sources */;
+			membershipExceptions = (
+				Requirements.md,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AD2923182F452D9C00EC7529 /* transmute */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = transmute;
+			sourceTree = "<group>";
+		};
+		AD6DABF92F82FF6C003222DA /* docs */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AD6DABFA2F82FF70003222DA /* Exceptions for "docs" folder in "transmute" target */,
+				AD6DABFB2F82FF70003222DA /* Exceptions for "docs" folder in "Compile Sources" phase from "transmute" target */,
+			);
+			path = docs;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,9 +70,11 @@
 		AD29230D2F452D9C00EC7529 = {
 			isa = PBXGroup;
 			children = (
+				AD6DABF92F82FF6C003222DA /* docs */,
 				AD2923182F452D9C00EC7529 /* transmute */,
 				AD69CB362F7CA43A0015EEEE /* .gitignore */,
-				AD69CB6F2F7DB3990015EEEE /* README.md */,
+				AD6DABFC2F82FF7C003222DA /* README.md */,
+				AD6DAC162F847714003222DA /* CLAUDE.md */,
 				AD2923172F452D9C00EC7529 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -71,6 +104,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				AD2923182F452D9C00EC7529 /* transmute */,
+				AD6DABF92F82FF6C003222DA /* docs */,
 			);
 			name = transmute;
 			packageProductDependencies = (
@@ -118,6 +152,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD6DABFD2F82FF80003222DA /* README.md in Resources */,
+				AD6DAC172F847714003222DA /* CLAUDE.md in Resources */,
 				AD69CB392F7CA43A0015EEEE /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -129,7 +165,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AD69CB702F7DB39E0015EEEE /* README.md in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

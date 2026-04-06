@@ -10,6 +10,7 @@ import Cocoa
 
 class TransmutePanel {
     private static var panel: NSPanel?
+    private static var globalMonitor: Any?
 
     static func show() {
         print(">>> show() called")
@@ -58,9 +59,24 @@ class TransmutePanel {
         panel.contentView = hostingView
         panel.orderFrontRegardless()
         self.panel = panel
+
+        installDismissMonitors()
+    }
+
+    private static func installDismissMonitors() {
+        // Click outside or Escape pressed in any other app → dismiss.
+        // Both must be global because the panel is non-activating and never
+        // receives events in our own process.
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .keyDown]
+        ) { event in
+            if event.type == .keyDown && event.keyCode != 0x35 { return }
+            dismiss()
+        }
     }
 
     static func dismiss() {
+        if let m = globalMonitor { NSEvent.removeMonitor(m); globalMonitor = nil }
         panel?.close()
         panel = nil
     }

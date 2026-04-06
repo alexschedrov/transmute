@@ -15,5 +15,3 @@ Settings
 Application
 - Add app logo
 - Add menu bar icon
-
-Installation via brew like https://github.com/jordanbaird/Ice
