@@ -15,3 +15,7 @@ Settings
 Application
 - Add app logo
 - Add menu bar icon
+
+Inspiration
+- Raycast AI
+- PopClip

@@ -12,7 +12,7 @@ struct transmuteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("Transmute", systemImage: "textformat.alt") {
+        MenuBarExtra("Transmute", image: "MenuBarIcon") {
             SettingsLink {
                 Text("Settings")
             }

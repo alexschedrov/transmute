@@ -9,12 +9,33 @@ import SwiftUI
 import Cocoa
 import Combine
 
+enum PanelMode { case actions, customInput }
+
+/// Brand gradient applied to every icon inside the panel.
+/// Top stop: #A933FF (bright violet). Bottom stop: #B944D1 (bright magenta-purple).
+private let panelIconGradient = LinearGradient(
+    colors: [
+        Color(red: 0xA9 / 255.0, green: 0x33 / 255.0, blue: 0xFF / 255.0),
+        Color(red: 0xB9 / 255.0, green: 0x44 / 255.0, blue: 0xD1 / 255.0),
+    ],
+    startPoint: .top,
+    endPoint: .bottom
+)
+
 final class PanelState: ObservableObject {
     @Published var selectedIndex: Int = 0
+    @Published var mode: PanelMode = .actions
     let count: Int
     init(count: Int) { self.count = count }
     func moveUp() { selectedIndex = max(0, selectedIndex - 1) }
     func moveDown() { selectedIndex = min(count - 1, selectedIndex + 1) }
+}
+
+/// NSPanel subclass that can become key without activating the app.
+/// This is required for the custom-input TextField to receive keystrokes
+/// while the source app stays visually active underneath.
+final class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }
 
 class TransmutePanel {
@@ -45,7 +66,7 @@ class TransmutePanel {
         dismiss()
 
         let panelSize = CGSize(width: 560, height: 420)
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(origin: .zero, size: panelSize),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
@@ -64,6 +85,10 @@ class TransmutePanel {
         self.state = state
 
         let handle: (TextAction) -> Void = { action in
+            if action.isCustom {
+                state.mode = .customInput
+                return
+            }
             dismiss()
             Task { await processAndReplace(text: text, action: action) }
         }
@@ -72,11 +97,29 @@ class TransmutePanel {
             handle(actions[idx])
         }
 
-        let view = PanelContentView(selectedText: text, actions: actions, state: state, onAction: handle)
+        let onCustomSubmit: (String) -> Void = { userPrompt in
+            let trimmed = userPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            dismiss()
+            // Force result-only output so the model reply can be pasted
+            // directly, matching the convention of the built-in actions.
+            let wrapped = "\(trimmed)\n\nReturn ONLY the transformed text, with no preamble, explanation, or quoting."
+            let custom = TextAction(name: "Custom", icon: "wand.and.stars", prompt: wrapped)
+            Task { await processAndReplace(text: text, action: custom) }
+        }
+
+        let view = PanelContentView(
+            selectedText: text,
+            actions: actions,
+            state: state,
+            onAction: handle,
+            onCustomSubmit: onCustomSubmit
+        )
 
         let hostingView = NSHostingView(rootView: view)
         panel.contentView = hostingView
         panel.orderFrontRegardless()
+        panel.makeKey()
         self.panel = panel
 
         installDismissMonitors()
@@ -115,10 +158,23 @@ class TransmutePanel {
                     return Unmanaged.passRetained(event)
                 }
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-                switch keyCode {
-                case 0x35: // Escape
+
+                // Escape always dismisses, in any mode.
+                if keyCode == 0x35 {
                     DispatchQueue.main.async { TransmutePanel.dismiss() }
                     return nil
+                }
+
+                // In custom-input mode the text field owns the keyboard —
+                // don't swallow anything else (arrows move caret, Return submits
+                // via SwiftUI's onSubmit, typing fills the field).
+                if TransmutePanel.state?.mode == .customInput {
+                    return Unmanaged.passRetained(event)
+                }
+
+                // Actions-list mode: navigation keys are swallowed so arrow /
+                // return don't leak into the source app underneath.
+                switch keyCode {
                 case 0x7E: // Up arrow
                     DispatchQueue.main.async { TransmutePanel.state?.moveUp() }
                     return nil
@@ -173,14 +229,38 @@ struct PanelContentView: View {
     let actions: [TextAction]
     @ObservedObject var state: PanelState
     let onAction: (TextAction) -> Void
+    let onCustomSubmit: (String) -> Void
 
     var body: some View {
+        Group {
+            if state.mode == .customInput {
+                CustomInputView(selectedText: selectedText, onSubmit: onCustomSubmit)
+            } else {
+                actionsList
+            }
+        }
+        .frame(width: 560, height: 420)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+        )
+        // Keyboard navigation is handled by the CGEvent tap in TransmutePanel,
+        // so SwiftUI/AppKit focus rings on Buttons would just clash with our
+        // own highlight. Kill them for the whole panel.
+        .focusEffectDisabled()
+    }
+
+    private var actionsList: some View {
         VStack(spacing: 0) {
             // Preview of selected text — Spotlight-style "query" row
             HStack(spacing: 14) {
-                Image(systemName: "text.quote")
-                    .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(.secondary)
+                Image("MenuBarIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(panelIconGradient)
                 Text(selectedText.prefix(120) + (selectedText.count > 120 ? "…" : ""))
                     .font(.system(size: 22, weight: .regular))
                     .foregroundStyle(.primary)
@@ -202,7 +282,7 @@ struct PanelContentView: View {
                                     Image(systemName: action.icon)
                                         .font(.system(size: 18, weight: .regular))
                                         .frame(width: 28)
-                                        .foregroundStyle(.tint)
+                                        .foregroundStyle(panelIconGradient)
                                     Text(action.name)
                                         .font(.system(size: 18, weight: .regular))
                                         .foregroundStyle(.primary)
@@ -227,14 +307,68 @@ struct PanelContentView: View {
                     }
                 }
             }
+
+            HStack {
+                Spacer()
+                Text("↵ run   esc cancel")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 14)
+            .padding(.top, 6)
         }
-        .frame(width: 560, height: 420)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
-        )
+    }
+}
+
+private struct CustomInputView: View {
+    let selectedText: String
+    let onSubmit: (String) -> Void
+    @State private var prompt = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Prompt row — like Spotlight's query field
+            HStack(spacing: 14) {
+                Image("MenuBarIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(panelIconGradient)
+                TextField("Describe the transformation…", text: $prompt)
+                    .font(.system(size: 22, weight: .regular))
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+                    .onSubmit { onSubmit(prompt) }
+            }
+            .padding(.horizontal, 22)
+            .padding(.vertical, 18)
+
+            Divider().opacity(0.4)
+
+            // Reference: the selected text the prompt will operate on
+            ScrollView {
+                Text(selectedText)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.disabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(22)
+            }
+
+            Spacer(minLength: 0)
+
+            HStack {
+                Spacer()
+                Text("↵ run   esc cancel")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 14)
+        }
+        .onAppear { focused = true }
     }
 }
 
@@ -259,6 +393,8 @@ private struct SpotlightRowButtonStyle: ButtonStyle {
     PanelContentView(
         selectedText: "Test text",
         actions: TextAction.builtIn,
-        state: PanelState(count: TextAction.builtIn.count)
-    ) { _ in }
+        state: PanelState(count: TextAction.builtIn.count),
+        onAction: { _ in },
+        onCustomSubmit: { _ in }
+    )
 }

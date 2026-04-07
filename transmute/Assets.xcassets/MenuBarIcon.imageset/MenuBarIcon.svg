@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Outer circle — inset from viewBox edges for breathing room -->
+  <circle cx="12" cy="12" r="9" fill="none" stroke="black" stroke-width="1.6"/>
+  <!-- Diamond inside, ~70% of the circle's diameter -->
+  <path d="M12 6.5 L6.5 12 L12 17.5 L17.5 12 Z" fill="black"/>
+</svg>
