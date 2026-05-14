@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("anthropicAPIKey") private var anthropicKey: String = ""
     @AppStorage("openaiAPIKey") private var openaiKey: String = ""
     @AppStorage("geminiAPIKey") private var geminiKey: String = ""
+    @AppStorage("userVoice") private var userVoice: String = ""
 
     private var provider: LLMProvider {
         LLMProvider(rawValue: selectedProvider) ?? .anthropic
@@ -44,6 +45,16 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
+                Section("Your writing style") {
+                    TextEditor(text: $userVoice)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 96)
+                        .border(.quaternary)
+                    Text("Optional. A few sentences describing how you write — audience, language, register, quirks. Used as context for every transformation.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
                 Section("Shortcut") {
                     HStack {
                         Text("Keyboard Shortcut")
@@ -59,12 +70,22 @@ struct SettingsView: View {
             .padding()
             .tabItem { Label("General", systemImage: "gear") }
         }
-        .frame(width: 420, height: 280)
+        .frame(width: 420, height: 460)
+        .onAppear {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
             if let window = notification.object as? NSWindow, window.title.contains("Settings") || window.title.contains("Transmute") {
                 window.level = .floating
                 window.orderFrontRegardless()
                 window.level = .normal
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
+            if let window = notification.object as? NSWindow,
+               window.title.contains("Settings") || window.title.contains("Transmute") {
+                NSApp.setActivationPolicy(.accessory)
             }
         }
     }
