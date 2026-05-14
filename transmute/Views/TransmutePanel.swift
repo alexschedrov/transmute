@@ -101,9 +101,7 @@ class TransmutePanel {
             let trimmed = userPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
             dismiss()
-            // Force result-only output so the model reply can be pasted
-            // directly, matching the convention of the built-in actions.
-            let wrapped = "\(trimmed)\n\nReturn ONLY the transformed text, with no preamble, explanation, or quoting."
+            let wrapped = "Apply the following instruction to the input: \(trimmed)"
             let custom = TextAction(name: "Custom", icon: "wand.and.stars", prompt: wrapped)
             Task { await processAndReplace(text: text, action: custom) }
         }
