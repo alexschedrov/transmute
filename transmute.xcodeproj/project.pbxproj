@@ -19,26 +19,6 @@
 		AD6DAC162F847714003222DA /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.markdown; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		AD6DABFA2F82FF70003222DA /* Exceptions for "docs" folder in "transmute" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Requirements.md,
-			);
-			target = AD2923152F452D9C00EC7529 /* transmute */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		AD6DABFB2F82FF70003222DA /* Exceptions for "docs" folder in "Compile Sources" phase from "transmute" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = AD2923122F452D9C00EC7529 /* Sources */;
-			membershipExceptions = (
-				Requirements.md,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AD2923182F452D9C00EC7529 /* transmute */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -47,10 +27,6 @@
 		};
 		AD6DABF92F82FF6C003222DA /* docs */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				AD6DABFA2F82FF70003222DA /* Exceptions for "docs" folder in "transmute" target */,
-				AD6DABFB2F82FF70003222DA /* Exceptions for "docs" folder in "Compile Sources" phase from "transmute" target */,
-			);
 			path = docs;
 			sourceTree = "<group>";
 		};
