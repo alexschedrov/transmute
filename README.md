@@ -33,6 +33,17 @@ Transmute is a native MacOS application to transform selected text anywhere (any
    ```
 7. Launch, then grant Accessibility permission: System Settings → Privacy & Security → Accessibility → enable `transmute`.
 
+### Troubleshooting
+
+**CodeSign fails with `resource fork, Finder information, or similar detritus not allowed`** — usually caused by `.DS_Store` files or extended attributes in the source tree. Run:
+
+```
+find . -name .DS_Store -delete
+xattr -cr .
+```
+
+then in Xcode: **Product → Clean Build Folder** (⇧⌘K) and rebuild. If it still fails, retry the `xattr` step with `sudo` to clear system-protected attributes.
+
 ## Use it
 
 Open **Settings** → pick a provider and paste your API key. Then: select text anywhere → **⌥⇧T** → choose an action (or `Custom Request` for ad-hoc instructions).
