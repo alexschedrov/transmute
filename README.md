@@ -37,6 +37,10 @@ Transmute is a native MacOS application to transform selected text anywhere (any
 
 Open **Settings** → pick a provider and paste your API key. Then: select text anywhere → **⌥⇧T** → choose an action (or `Custom Request` for ad-hoc instructions).
 
+## Contributing
+
+Contributions are welcome. By submitting a pull request, you agree to the terms of the [Contributor License Agreement](CLA.md).
+
 ## License
 
-TBD
+[MIT](LICENSE) © Alex Schedrov
