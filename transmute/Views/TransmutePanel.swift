@@ -9,7 +9,7 @@ import SwiftUI
 import Cocoa
 import Combine
 
-enum PanelMode { case actions, customInput }
+enum PanelMode { case actions, customInput, processing }
 
 /// Brand gradient applied to every icon inside the panel.
 /// Top stop: #A933FF (bright violet). Bottom stop: #B944D1 (bright magenta-purple).
@@ -25,6 +25,7 @@ private let panelIconGradient = LinearGradient(
 final class PanelState: ObservableObject {
     @Published var selectedIndex: Int = 0
     @Published var mode: PanelMode = .actions
+    @Published var processingLabel: String = ""
     let count: Int
     init(count: Int) { self.count = count }
     func moveUp() { selectedIndex = max(0, selectedIndex - 1) }
@@ -45,6 +46,7 @@ class TransmutePanel {
     private static var keyTapSource: CFRunLoopSource?
     private static var state: PanelState?
     private static var onActivate: (() -> Void)?
+    private static var processingTask: Task<Void, Never>?
 
     static func show() {
         print(">>> show() called")
@@ -89,8 +91,7 @@ class TransmutePanel {
                 state.mode = .customInput
                 return
             }
-            dismiss()
-            Task { await processAndReplace(text: text, action: action) }
+            startProcessing(label: action.progressLabel ?? action.name, text: text, action: action)
         }
         onActivate = {
             guard let idx = self.state?.selectedIndex, actions.indices.contains(idx) else { return }
@@ -100,10 +101,9 @@ class TransmutePanel {
         let onCustomSubmit: (String) -> Void = { userPrompt in
             let trimmed = userPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
-            dismiss()
             let wrapped = "Apply the following instruction to the input: \(trimmed)"
             let custom = TextAction(name: "Custom", icon: "wand.and.stars", prompt: wrapped)
-            Task { await processAndReplace(text: text, action: custom) }
+            startProcessing(label: "Transmuting", text: text, action: custom)
         }
 
         let view = PanelContentView(
@@ -165,8 +165,9 @@ class TransmutePanel {
 
                 // In custom-input mode the text field owns the keyboard —
                 // don't swallow anything else (arrows move caret, Return submits
-                // via SwiftUI's onSubmit, typing fills the field).
-                if TransmutePanel.state?.mode == .customInput {
+                // via SwiftUI's onSubmit, typing fills the field). While
+                // processing there's no list to navigate either.
+                if TransmutePanel.state?.mode == .customInput || TransmutePanel.state?.mode == .processing {
                     return Unmanaged.passRetained(event)
                 }
 
@@ -206,16 +207,29 @@ class TransmutePanel {
             keyTap = nil
             keyTapSource = nil
         }
+        processingTask?.cancel()
+        processingTask = nil
         state = nil
         onActivate = nil
         panel?.close()
         panel = nil
     }
 
-    private static func processAndReplace(text: String, action: TextAction) async {
-        let result = await action.apply(to: text)
-        await MainActor.run {
-            AccessibilityService.replaceSelectedText(with: result)
+    /// Morphs the panel into the Siri-style "in progress" state, runs the
+    /// transformation, then dismisses and pastes once it completes.
+    private static func startProcessing(label: String, text: String, action: TextAction) {
+        guard let state else { return }
+        withAnimation(.easeOut(duration: 0.18)) {
+            state.processingLabel = label
+            state.mode = .processing
+        }
+        processingTask = Task {
+            let result = await action.apply(to: text)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                dismiss()
+                AccessibilityService.replaceSelectedText(with: result)
+            }
         }
     }
 }
@@ -231,9 +245,12 @@ struct PanelContentView: View {
 
     var body: some View {
         Group {
-            if state.mode == .customInput {
+            switch state.mode {
+            case .customInput:
                 CustomInputView(selectedText: selectedText, onSubmit: onCustomSubmit)
-            } else {
+            case .processing:
+                ProcessingView(label: state.processingLabel)
+            case .actions:
                 actionsList
             }
         }
@@ -244,6 +261,11 @@ struct PanelContentView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(.white.opacity(0.08), lineWidth: 1)
         )
+        .overlay {
+            if state.mode == .processing {
+                SiriBorderView()
+            }
+        }
         // Keyboard navigation is handled by the CGEvent tap in TransmutePanel,
         // so SwiftUI/AppKit focus rings on Buttons would just clash with our
         // own highlight. Kill them for the whole panel.
@@ -367,6 +389,98 @@ private struct CustomInputView: View {
             .padding(.bottom, 14)
         }
         .onAppear { focused = true }
+    }
+}
+
+/// Siri-style "in progress" state — a breathing, slowly spinning gradient
+/// orb with a shimmering label, shown while the transformation runs.
+private struct ProcessingView: View {
+    let label: String
+    @State private var breathe = false
+    @State private var spin = false
+    @State private var shimmer = false
+
+    var body: some View {
+        VStack(spacing: 22) {
+            ZStack {
+                Circle()
+                    .fill(panelIconGradient)
+                    .frame(width: 110, height: 110)
+                    .blur(radius: 30)
+                    .opacity(0.85)
+                Circle()
+                    .fill(panelIconGradient)
+                    .frame(width: 72, height: 72)
+                    .blur(radius: 4)
+            }
+            .scaleEffect(breathe ? 1.12 : 0.86)
+            .rotationEffect(.degrees(spin ? 360 : 0))
+            .animation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true), value: breathe)
+            .animation(.linear(duration: 3.4).repeatForever(autoreverses: false), value: spin)
+
+            Text("\(label)…")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.secondary)
+                .opacity(shimmer ? 0.45 : 1)
+                .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: shimmer)
+        }
+        .frame(width: 560, height: 420)
+        .onAppear {
+            breathe = true
+            spin = true
+            shimmer = true
+        }
+    }
+}
+
+/// Animated gradient comet that travels around the panel's border while
+/// processing, echoing macOS's Siri activation glow. Uses a dash pattern
+/// sized to the panel's perimeter so the moving segment wraps seamlessly.
+private struct SiriBorderView: View {
+    private let cornerRadius: CGFloat = 18
+    @State private var phase: CGFloat = 0
+
+    private var borderGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0xA9 / 255.0, green: 0x33 / 255.0, blue: 0xFF / 255.0),
+                Color(red: 0xB9 / 255.0, green: 0x44 / 255.0, blue: 0xD1 / 255.0),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private func perimeter(for size: CGSize) -> CGFloat {
+        let straightWidth: CGFloat = 2 * (size.width - 2 * cornerRadius)
+        let straightHeight: CGFloat = 2 * (size.height - 2 * cornerRadius)
+        let corners: CGFloat = 2 * CGFloat.pi * cornerRadius
+        return straightWidth + straightHeight + corners
+    }
+
+    private func style(perimeter: CGFloat, lineWidth: CGFloat) -> StrokeStyle {
+        let comet: CGFloat = perimeter * 0.22
+        let dash: [CGFloat] = [comet, perimeter - comet]
+        return StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: dash, dashPhase: phase)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            let totalPerimeter = perimeter(for: geo.size)
+
+            ZStack {
+                shape.stroke(borderGradient, style: style(perimeter: totalPerimeter, lineWidth: 3))
+                    .blur(radius: 6)
+                    .opacity(0.9)
+                shape.stroke(borderGradient, style: style(perimeter: totalPerimeter, lineWidth: 1.5))
+            }
+            .onAppear {
+                withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) {
+                    phase = -totalPerimeter
+                }
+            }
+        }
     }
 }
 
