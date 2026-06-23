@@ -25,13 +25,14 @@ Transmute is a native MacOS application to transform selected text anywhere (any
 1. Open `transmute.xcodeproj` in Xcode.
 2. Product → Scheme → Edit Scheme → Run → **Build Configuration: Release**.
 3. Product → Build (⌘B).
-4. Project navigator → **Products** → right-click `transmute.app` → **Show in Finder**.
+4. Products → Show build folder in Finder → Open **Products** folder → Open **Release** folder
 5. Drag `transmute.app` into `/Applications`.
 6. Strip Gatekeeper quarantine (unsigned build):
    ```
    xattr -cr /Applications/transmute.app
    ```
 7. Launch, then grant Accessibility permission: System Settings → Privacy & Security → Accessibility → enable `transmute`.
+8. Transmute stores all API keys in a secure Keychain, so during the first run it will ask for access to the Keychain property.
 
 ### Troubleshooting
 
