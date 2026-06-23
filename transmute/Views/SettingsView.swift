@@ -9,10 +9,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("llmProvider") private var selectedProvider: String = LLMProvider.openai.rawValue
-    @AppStorage("anthropicAPIKey") private var anthropicKey: String = ""
-    @AppStorage("openaiAPIKey") private var openaiKey: String = ""
-    @AppStorage("geminiAPIKey") private var geminiKey: String = ""
     @AppStorage("userVoice") private var userVoice: String = ""
+    @State private var apiKeys: [LLMProvider: String] = [:]
     @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode: Int = Int(Shortcut.default.keyCode)
     @AppStorage("hotkeyModifiers") private var hotkeyModifiersRaw: Int = Int(Shortcut.default.modifiers.rawValue)
     @AppStorage("hotkeyKeyLabel") private var hotkeyKeyLabel: String = Shortcut.default.keyLabel
@@ -22,10 +20,18 @@ struct SettingsView: View {
     }
 
     private var apiKeyBinding: Binding<String> {
-        switch provider {
-        case .anthropic: $anthropicKey
-        case .openai: $openaiKey
-        case .gemini: $geminiKey
+        Binding(
+            get: { apiKeys[provider] ?? "" },
+            set: { newValue in
+                apiKeys[provider] = newValue
+                KeychainService.save(newValue, account: provider.apiKeyStorageKey)
+            }
+        )
+    }
+
+    private func loadAPIKeys() {
+        for p in LLMProvider.allCases {
+            apiKeys[p] = KeychainService.read(account: p.apiKeyStorageKey) ?? ""
         }
     }
 
@@ -51,6 +57,7 @@ struct SettingsView: View {
         }
         .frame(width: 420, height: 460)
         .onAppear(perform: showInDock)
+        .onAppear(perform: loadAPIKeys)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
             guard let window = notification.object as? NSWindow, isSettingsWindow(window) else { return }
             window.level = .floating

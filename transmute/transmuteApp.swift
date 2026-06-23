@@ -34,6 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var defaultsObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        KeychainService.migrateFromUserDefaultsIfNeeded()
         AccessibilityService.promptIfNeeded()
 
         hotkeyService = HotkeyService(shortcut: UserDefaults.standard.hotkeyShortcut) {

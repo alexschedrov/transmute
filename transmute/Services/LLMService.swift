@@ -15,7 +15,7 @@ class LLMService {
     }
 
     private var apiKey: String {
-        UserDefaults.standard.string(forKey: provider.apiKeyStorageKey) ?? ""
+        KeychainService.read(account: provider.apiKeyStorageKey) ?? ""
     }
 
     private var userVoice: String {
