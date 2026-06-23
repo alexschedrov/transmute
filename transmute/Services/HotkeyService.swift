@@ -11,12 +11,18 @@ class HotkeyService {
     private var eventTap: CFMachPort?
     private let onTrigger: () -> Void
 
-    // Default: ⌥⇧T for "Transmute"
-    private let triggerKeyCode: UInt16 = 0x11  // 'T'
-    private let triggerModifiers: CGEventFlags = [.maskAlternate, .maskShift]
+    private var triggerKeyCode: UInt16
+    private var triggerModifiers: CGEventFlags
 
-    init(onTrigger: @escaping () -> Void) {
+    init(shortcut: Shortcut, onTrigger: @escaping () -> Void) {
+        self.triggerKeyCode = shortcut.keyCode
+        self.triggerModifiers = shortcut.modifiers
         self.onTrigger = onTrigger
+    }
+
+    func updateShortcut(_ shortcut: Shortcut) {
+        triggerKeyCode = shortcut.keyCode
+        triggerModifiers = shortcut.modifiers
     }
 
     func register(retryCount: Int = 0) {

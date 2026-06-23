@@ -13,6 +13,9 @@ struct SettingsView: View {
     @AppStorage("openaiAPIKey") private var openaiKey: String = ""
     @AppStorage("geminiAPIKey") private var geminiKey: String = ""
     @AppStorage("userVoice") private var userVoice: String = ""
+    @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode: Int = Int(Shortcut.default.keyCode)
+    @AppStorage("hotkeyModifiers") private var hotkeyModifiersRaw: Int = Int(Shortcut.default.modifiers.rawValue)
+    @AppStorage("hotkeyKeyLabel") private var hotkeyKeyLabel: String = Shortcut.default.keyLabel
 
     private var provider: LLMProvider {
         LLMProvider(rawValue: selectedProvider) ?? .anthropic
@@ -24,6 +27,20 @@ struct SettingsView: View {
         case .openai: $openaiKey
         case .gemini: $geminiKey
         }
+    }
+
+    private var currentShortcut: Shortcut {
+        Shortcut(
+            keyCode: UInt16(hotkeyKeyCode),
+            modifiers: CGEventFlags(rawValue: UInt64(hotkeyModifiersRaw)),
+            keyLabel: hotkeyKeyLabel
+        )
+    }
+
+    private func setShortcut(_ shortcut: Shortcut) {
+        hotkeyKeyCode = Int(shortcut.keyCode)
+        hotkeyModifiersRaw = Int(shortcut.modifiers.rawValue)
+        hotkeyKeyLabel = shortcut.keyLabel
     }
 
     var body: some View {
@@ -91,11 +108,11 @@ struct SettingsView: View {
             HStack {
                 Text("Keyboard Shortcut")
                 Spacer()
-                Text("⌥⇧T")
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.quaternary)
-                    .cornerRadius(6)
+                ShortcutRecorderView(shortcut: currentShortcut, onChange: setShortcut)
+                Button("Reset") {
+                    setShortcut(.default)
+                }
+                .disabled(currentShortcut == .default)
             }
         }
     }

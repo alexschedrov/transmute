@@ -31,13 +31,22 @@ struct transmuteApp: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyService: HotkeyService!
+    private var defaultsObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AccessibilityService.promptIfNeeded()
 
-        hotkeyService = HotkeyService {
+        hotkeyService = HotkeyService(shortcut: UserDefaults.standard.hotkeyShortcut) {
             TransmutePanel.show()
         }
         hotkeyService.register()
+
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hotkeyService.updateShortcut(UserDefaults.standard.hotkeyShortcut)
+        }
     }
 }
