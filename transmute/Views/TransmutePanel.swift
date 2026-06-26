@@ -82,7 +82,8 @@ class TransmutePanel {
 
         panel.setFrameOrigin(panelOrigin(size: panelSize))
 
-        let actions = TextAction.builtIn
+        let custom = UserDefaults.standard.customCommands.map(\.asTextAction)
+        let actions = TextAction.builtIn + custom
         let state = PanelState(count: actions.count)
         self.state = state
 

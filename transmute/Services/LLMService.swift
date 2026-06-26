@@ -18,13 +18,20 @@ class LLMService {
         KeychainService.read(account: provider.apiKeyStorageKey) ?? ""
     }
 
+    private var model: String {
+        let override = UserDefaults.standard.string(forKey: "model_\(provider.rawValue)") ?? ""
+        return override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? provider.defaultModel
+            : override
+    }
+
     private var userVoice: String {
         (UserDefaults.standard.string(forKey: "userVoice") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func process(text: String, prompt: String) async -> String {
-        guard !apiKey.isEmpty else {
+        guard !provider.requiresAPIKey || !apiKey.isEmpty else {
             return "[Set your \(provider.displayName) API key in Transmute settings]"
         }
 
@@ -36,6 +43,7 @@ class LLMService {
         case .anthropic: request = buildAnthropicRequest(systemPrompt: systemPrompt, userMessage: userMessage)
         case .openai: request = buildOpenAIRequest(systemPrompt: systemPrompt, userMessage: userMessage)
         case .gemini: request = buildGeminiRequest(systemPrompt: systemPrompt, userMessage: userMessage)
+        case .local: request = buildOllamaRequest(systemPrompt: systemPrompt, userMessage: userMessage)
         }
 
         do {
@@ -83,7 +91,7 @@ class LLMService {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let body: [String: Any] = [
-            "model": provider.defaultModel,
+            "model": model,
             "max_tokens": 4096,
             "system": [[
                 "type": "text",
@@ -103,7 +111,7 @@ class LLMService {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "authorization")
 
         let body: [String: Any] = [
-            "model": provider.defaultModel,
+            "model": model,
             "max_tokens": 4096,
             "messages": [
                 ["role": "system", "content": systemPrompt],
@@ -115,7 +123,7 @@ class LLMService {
     }
 
     private func buildGeminiRequest(systemPrompt: String, userMessage: String) -> URLRequest {
-        let url = "https://generativelanguage.googleapis.com/v1beta/models/\(provider.defaultModel):generateContent?key=\(apiKey)"
+        let url = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
@@ -123,6 +131,29 @@ class LLMService {
         let body: [String: Any] = [
             "systemInstruction": ["parts": [["text": systemPrompt]]],
             "contents": [["parts": [["text": userMessage]]]]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
+    private var localBaseURL: String {
+        let stored = UserDefaults.standard.string(forKey: "localServerURL") ?? ""
+        return stored.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "http://localhost:11434"
+            : stored
+    }
+
+    private func buildOllamaRequest(systemPrompt: String, userMessage: String) -> URLRequest {
+        var request = URLRequest(url: URL(string: "\(localBaseURL)/v1/chat/completions")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+
+        let body: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": userMessage]
+            ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         return request
@@ -141,7 +172,7 @@ class LLMService {
                let text = content.first?["text"] as? String {
                 return text
             }
-        case .openai:
+        case .openai, .local:
             if let choices = json["choices"] as? [[String: Any]],
                let message = choices.first?["message"] as? [String: Any],
                let text = message["content"] as? String {

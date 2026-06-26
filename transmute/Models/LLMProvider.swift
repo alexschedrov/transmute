@@ -11,6 +11,7 @@ enum LLMProvider: String, CaseIterable, Identifiable {
     case anthropic
     case openai
     case gemini
+    case local
 
     var id: String { rawValue }
 
@@ -19,6 +20,7 @@ enum LLMProvider: String, CaseIterable, Identifiable {
         case .anthropic: "Anthropic"
         case .openai: "OpenAI"
         case .gemini: "Google Gemini"
+        case .local: "Local Server"
         }
     }
 
@@ -27,7 +29,12 @@ enum LLMProvider: String, CaseIterable, Identifiable {
         case .anthropic: "anthropicAPIKey"
         case .openai: "openaiAPIKey"
         case .gemini: "geminiAPIKey"
+        case .local: ""
         }
+    }
+
+    var requiresAPIKey: Bool {
+        self != .local
     }
 
     var placeholder: String {
@@ -35,22 +42,34 @@ enum LLMProvider: String, CaseIterable, Identifiable {
         case .anthropic: "sk-ant-…"
         case .openai: "sk-…"
         case .gemini: "AI…"
+        case .local: ""
         }
     }
 
-    var helpText: String {
+    var keyURL: URL? {
         switch self {
-        case .anthropic: "Get your key at console.anthropic.com"
-        case .openai: "Get your key at platform.openai.com"
-        case .gemini: "Get your key at aistudio.google.com"
+        case .anthropic: URL(string: "https://console.anthropic.com/settings/keys")
+        case .openai: URL(string: "https://platform.openai.com/api-keys")
+        case .gemini: URL(string: "https://aistudio.google.com/app/apikey")
+        case .local: nil
         }
     }
 
     var defaultModel: String {
         switch self {
-        case .anthropic: "claude-sonnet-4-20250514"
+        case .anthropic: "claude-sonnet-4-6"
         case .openai: "gpt-4o"
-        case .gemini: "gemini-2.0-flash"
+        case .gemini: "gemini-2.5-flash"
+        case .local: "llama3.2"
+        }
+    }
+
+    var knownModels: [String] {
+        switch self {
+        case .anthropic: ["claude-fable-5", "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+        case .openai: ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-4o", "gpt-4o-mini"]
+        case .gemini: ["gemini-3.5-flash", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+        case .local: []
         }
     }
 }

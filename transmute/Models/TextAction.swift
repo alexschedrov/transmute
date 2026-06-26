@@ -32,10 +32,6 @@ struct TextAction: Identifiable {
 
     static let builtIn: [TextAction] = [
         TextAction(name: "Custom Request", icon: "wand.and.stars", isCustom: true),
-//        TextAction(name: "Uppercase", icon: "textformat.size.larger",
-//                   localTransform: { $0.uppercased() }),
-//        TextAction(name: "Lowercase", icon: "textformat.size.smaller",
-//                   localTransform: { $0.lowercased() }),
         TextAction(name: "Fix Grammar", icon: "textformat.abc",
                    prompt: "Make minimal corrections only. Fix grammatical errors, spelling, and punctuation. Do not change vocabulary, voice, sentence structure, or style. If the input is already correct, return it unchanged.",
                    progressLabel: "Fixing grammar"),
@@ -55,4 +51,42 @@ struct TextAction: Identifiable {
                    prompt: "Expand with relevant detail, examples, or nuance that supports the existing point. Preserve tone and voice. Do not pad with filler.",
                    progressLabel: "Expanding"),
     ]
+}
+
+// MARK: - Custom commands (user-defined, persisted in UserDefaults as JSON)
+
+struct CustomCommand: Identifiable, Codable, Equatable {
+    var id: UUID
+    var name: String
+    var icon: String
+    var prompt: String
+
+    init(id: UUID = UUID(), name: String = "", icon: String = "wand.and.stars", prompt: String = "") {
+        self.id = id
+        self.name = name
+        self.icon = icon
+        self.prompt = prompt
+    }
+
+    var asTextAction: TextAction {
+        TextAction(name: name, icon: icon, prompt: prompt)
+    }
+}
+
+extension UserDefaults {
+    private static let customCommandsKey = "customCommands"
+
+    var customCommands: [CustomCommand] {
+        get {
+            guard let data = data(forKey: Self.customCommandsKey),
+                  let commands = try? JSONDecoder().decode([CustomCommand].self, from: data) else {
+                return []
+            }
+            return commands
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            set(data, forKey: Self.customCommandsKey)
+        }
+    }
 }
