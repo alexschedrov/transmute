@@ -211,26 +211,149 @@ private struct StatView: View {
 private struct HistoryTab: View {
     let records: [AnalyticsRecord]
 
+    @State private var searchText = ""
+    @State private var selectedCategory: String? = nil
+    @State private var currentPage = 0
+
+    private let pageSize = 20
+
+    private var allCategories: [String] {
+        var seen = Set<String>()
+        return records.flatMap(\.errorCategories).filter { seen.insert($0).inserted }
+    }
+
+    private var filtered: [AnalyticsRecord] {
+        records.reversed().filter { record in
+            let matchesCategory = selectedCategory.map { record.errorCategories.contains($0) } ?? true
+            guard matchesCategory else { return false }
+            guard !searchText.isEmpty else { return true }
+            let needle = searchText.lowercased()
+            return record.originalText.lowercased().contains(needle)
+                || record.correctedText.lowercased().contains(needle)
+                || record.explanation.lowercased().contains(needle)
+                || record.actionName.lowercased().contains(needle)
+        }
+    }
+
+    private var totalPages: Int { max(1, (filtered.count + pageSize - 1) / pageSize) }
+
+    private var paginated: [AnalyticsRecord] {
+        let start = currentPage * pageSize
+        guard start < filtered.count else { return [] }
+        return Array(filtered[start..<min(start + pageSize, filtered.count)])
+    }
+
     var body: some View {
-        if records.isEmpty {
-            VStack(spacing: 10) {
-                Image(systemName: "clock")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.tertiary)
-                Text("No transformations yet.")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(records.reversed()) { record in
-                        CorrectionCard(record: record)
+        VStack(spacing: 0) {
+            // Search + filters
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.tertiary)
+                    TextField("Search corrections…", text: $searchText)
+                        .textFieldStyle(.plain)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(16)
+                .padding(8)
+                .background(.background.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                if !allCategories.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(allCategories, id: \.self) { cat in
+                                let selected = selectedCategory == cat
+                                Button {
+                                    selectedCategory = selected ? nil : cat
+                                } label: {
+                                    Text(cat)
+                                        .font(.caption)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(selected ? Color.accentColor : Color.accentColor.opacity(0.1))
+                                        .foregroundStyle(selected ? .white : .primary)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .onChange(of: searchText) { _, _ in currentPage = 0 }
+            .onChange(of: selectedCategory) { _, _ in currentPage = 0 }
+
+            Divider()
+
+            // Results
+            if records.isEmpty {
+                emptyState(systemImage: "clock", message: "No transformations yet.")
+            } else if filtered.isEmpty {
+                emptyState(systemImage: "magnifyingglass", message: "No matches found.")
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(paginated) { record in
+                            CorrectionCard(record: record)
+                        }
+                    }
+                    .padding(16)
+                }
+
+                // Pagination footer
+                if totalPages > 1 {
+                    Divider()
+                    HStack(spacing: 12) {
+                        Button {
+                            currentPage -= 1
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(currentPage == 0)
+
+                        Spacer()
+
+                        Text("\(currentPage + 1) of \(totalPages)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+
+                        Spacer()
+
+                        Button {
+                            currentPage += 1
+                        } label: {
+                            Image(systemName: "chevron.right")
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(currentPage >= totalPages - 1)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                }
             }
         }
+    }
+
+    private func emptyState(systemImage: String, message: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 36))
+                .foregroundStyle(.tertiary)
+            Text(message)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -238,6 +361,9 @@ private struct HistoryTab: View {
 
 private struct CorrectionCard: View {
     let record: AnalyticsRecord
+    @State private var isExpanded = false
+
+    private var isLong: Bool { record.originalText.count > 160 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -249,8 +375,7 @@ private struct CorrectionCard: View {
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 if !record.language.isEmpty {
-                    Text("·")
-                        .foregroundStyle(.tertiary)
+                    Text("·").foregroundStyle(.tertiary)
                     Text(record.language)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -261,11 +386,37 @@ private struct CorrectionCard: View {
                     .foregroundStyle(.tertiary)
             }
 
-            // Diff
-            diffText(original: record.originalText, corrected: record.correctedText)
-                .font(.system(size: 14))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+            // Diff — collapsible when text is long
+            let diff = diffText(original: record.originalText, corrected: record.correctedText)
+            if isLong && !isExpanded {
+                diff
+                    .font(.system(size: 14))
+                    .lineSpacing(3)
+                    .lineLimit(4)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { isExpanded = true }
+                } label: {
+                    Text("Show full diff")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            } else {
+                diff
+                    .font(.system(size: 14))
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                if isLong {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { isExpanded = false }
+                    } label: {
+                        Text("Show less")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             // Explanation
             if !record.explanation.isEmpty {
