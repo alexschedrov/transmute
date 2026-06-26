@@ -190,6 +190,52 @@ class LLMService {
         return "[Unexpected response format]"
     }
 
+    // MARK: - Error Categorization
+
+    func analyzeCorrection(original: String, corrected: String) async -> CorrectionAnalysis {
+        let empty = CorrectionAnalysis(language: "", categories: [], explanation: "")
+        guard !provider.requiresAPIKey || !apiKey.isEmpty else { return empty }
+
+        let system = """
+        Analyze what was grammatically corrected between two texts.
+        Return ONLY valid JSON with exactly these keys:
+        {
+          "language": "English",
+          "categories": ["tense", "spelling"],
+          "explanation": "One sentence explaining the main error pattern."
+        }
+        Valid categories: spelling, tense, punctuation, capitalization, article, subject-verb agreement, word choice, run-on, preposition, plural.
+        """
+        let user = "Original: \"\(original)\"\nCorrected: \"\(corrected)\""
+
+        let request: URLRequest
+        switch provider {
+        case .anthropic: request = buildAnthropicRequest(systemPrompt: system, userMessage: user)
+        case .openai:    request = buildOpenAIRequest(systemPrompt: system, userMessage: user)
+        case .gemini:    request = buildGeminiRequest(systemPrompt: system, userMessage: user)
+        case .local:     request = buildOllamaRequest(systemPrompt: system, userMessage: user)
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return empty }
+            var raw = parseResponse(data: data).trimmingCharacters(in: .whitespacesAndNewlines)
+            // Strip optional markdown code fence
+            if raw.hasPrefix("```") {
+                raw = raw.components(separatedBy: "\n").filter { !$0.hasPrefix("```") }.joined(separator: "\n")
+            }
+            guard let jsonData = raw.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let language = obj["language"] as? String,
+                  let categories = obj["categories"] as? [String],
+                  let explanation = obj["explanation"] as? String
+            else { return empty }
+            return CorrectionAnalysis(language: language, categories: categories, explanation: explanation)
+        } catch {
+            return empty
+        }
+    }
+
     // MARK: - Output Sanitization
 
     private func sanitize(_ output: String, input: String) -> String {

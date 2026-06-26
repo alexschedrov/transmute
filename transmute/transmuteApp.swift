@@ -13,6 +13,10 @@ struct transmuteApp: App {
 
     var body: some Scene {
         MenuBarExtra("Transmute", image: "MenuBarIcon") {
+            Button("Analytics…") {
+                appDelegate.openAnalyticsWindow()
+            }
+            .keyboardShortcut("a")
             SettingsLink {
                 Text("Settings")
             }
@@ -29,11 +33,13 @@ struct transmuteApp: App {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var hotkeyService: HotkeyService!
     private var defaultsObserver: NSObjectProtocol?
+    private var analyticsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = AnalyticsService.shared  // warm singleton on main thread
         KeychainService.migrateFromUserDefaultsIfNeeded()
         AccessibilityService.promptIfNeeded()
 
@@ -48,6 +54,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { [weak self] _ in
             self?.hotkeyService.updateShortcut(UserDefaults.standard.hotkeyShortcut)
+        }
+    }
+
+    func openAnalyticsWindow() {
+        if let w = analyticsWindow, w.isVisible {
+            w.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let controller = NSHostingController(rootView: AnalyticsView())
+        let window = NSWindow(contentViewController: controller)
+        window.title = "Transmute Analytics"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.delegate = self
+        analyticsWindow = window
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard (notification.object as? NSWindow) === analyticsWindow else { return }
+        let hasOtherRegularWindow = NSApp.windows.contains {
+            $0 !== analyticsWindow && $0.isVisible && $0.styleMask.contains(.titled)
+        }
+        if !hasOtherRegularWindow {
+            NSApp.setActivationPolicy(.prohibited)
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 }

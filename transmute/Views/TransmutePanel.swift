@@ -231,6 +231,7 @@ class TransmutePanel {
                 dismiss()
                 AccessibilityService.replaceSelectedText(with: result)
             }
+            Task { await AnalyticsService.shared.record(action: action, original: text, result: result) }
         }
     }
 }
