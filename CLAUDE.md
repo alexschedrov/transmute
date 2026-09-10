@@ -6,6 +6,13 @@ This file provides guidance to coding assistants when working with code in this 
 
 Transmute is a macOS menu bar app (SwiftUI + AppKit). User selects text anywhere, presses ⌥⇧T, picks a transformation (local or LLM-powered), and the selection is replaced in place.
 
+## Principles
+
+- **Simple.** One shortcut, one panel, one purpose. No accounts, no telemetry, no cloud sync.
+- **Native.** Pure SwiftUI + AppKit. Feels like a macOS app because it is one.
+- **LLM-agnostic.** Anthropic, OpenAI, Gemini or local LLMs — your key, your choice. Swap providers in Settings.
+- **Lightweight.** A menu bar app that stays out of the way until you summon it. Minimal code, minimal surface area.
+
 ## Build
 
 Xcode project, no SwiftPM target, no tests.
