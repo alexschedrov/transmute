@@ -1,58 +1,43 @@
+<div align="center">
+
 # Transmute
 
-Feel tired of copying & pasting text to ChatGPT, Claude or other AI tools? 
+**Select text anywhere on macOS, press `⌥⇧T`, transform it in place.**
 
-Transmute is a native MacOS application to transform selected text anywhere (any application) with a single shortcut. Select text in any app, press **⌥⇧T**, pick an action - the selection is replaced in place.
+No copy-paste into ChatGPT. No context switching. Just your text, fixed.
 
-![Transmute preview](docs/assets/app-preview.png)
+![Transmute](docs/assets/app-preview.png)
 
-## Principles
+</div>
 
-- **Simple.** One shortcut, one panel, one purpose. No accounts, no telemetry, no cloud sync.
-- **Native.** Pure SwiftUI + AppKit. Feels like a macOS app because it is one.
-- **LLM-agnostic.** Anthropic, OpenAI, Gemini or local LLMs - your key, your choice. Swap providers in Settings.
-- **Lightweight.** A menu bar app that stays out of the way until you summon it. Minimal code, minimal surface area.
+## Capabilities
 
-## Features
+**Summon it anywhere.** One shortcut opens a floating panel next to your cursor in any app. Mail, Slack, Xcode, a PDF, it doesn't matter. Pick a transformation, the selection is replaced in place.
 
-- Fix grammar, rewrite, change tone, shorten, lengthen
-- Custom requests ("translate to French", "convert to bullet points", …)
-- Works in any app via the macOS Accessibility API
-- Optional "writing style" preference to keep your voice across transformations
+**Bring your own LLM.** Anthropic, OpenAI, Gemini or a local model. Your key, your choice, swappable anytime in Settings.
 
-## Install
+<img src="docs/assets/settings.png" width="49%"> <img src="docs/assets/llms.png" width="49%">
 
-1. Open `transmute.xcodeproj` in Xcode.
-2. Product → Scheme → Edit Scheme → Run → **Build Configuration: Release**.
-3. Product → Build (⌘B).
-4. Products → Show build folder in Finder → Open **Products** folder → Open **Release** folder
-5. Drag `transmute.app` into `/Applications`.
-6. Strip Gatekeeper quarantine (unsigned build):
-   ```
-   xattr -cr /Applications/transmute.app
-   ```
-7. Launch, then grant Accessibility permission: System Settings → Privacy & Security → Accessibility → enable `transmute`.
-8. Transmute stores all API keys in a secure Keychain, so during the first run it will ask for access to the Keychain property.
+**Commands that fit how you write.** Fix grammar, rewrite, shorten, change tone or define your own custom command with a name, icon and prompt.
 
-### Troubleshooting
+<img src="docs/assets/custom-commands.png" width="49%"> <img src="docs/assets/new-custom-command.png" width="49%">
 
-**CodeSign fails with `resource fork, Finder information, or similar detritus not allowed`** — usually caused by `.DS_Store` files or extended attributes in the source tree. Run:
+**See what changed.** Every transformation is logged with a before/after diff, so you can review or revert with confidence.
 
-```
-find . -name .DS_Store -delete
-xattr -cr .
-```
+<img src="docs/assets/analytics.png" width="49%"> <img src="docs/assets/diff.png" width="49%">
 
-then in Xcode: **Product → Clean Build Folder** (⇧⌘K) and rebuild. If it still fails, retry the `xattr` step with `sudo` to clear system-protected attributes.
+## Security
 
-## Use it
+Everything lives on your Mac. No accounts, no telemetry, no cloud sync. API keys are stored in the macOS Keychain, never in plain text and the transformation history behind Analytics/diff is a local JSON file on disk - never transmitted anywhere. Point Transmute at a local LLM (Ollama, LM Studio, etc.) and your text never leaves your machine at all.
 
-Open **Settings** → pick a provider and paste your API key. Then: select text anywhere → **⌥⇧T** → choose an action (or `Custom Request` for ad-hoc instructions).
+## Installation
 
-## Contributing
+1. Download `transmute.app.zip` from the [latest release](https://github.com/alexschedrov/transmute/releases/latest) and unzip it into `/Applications`.
+2. `xattr -cr /Applications/transmute.app` (strips the Gatekeeper quarantine - this is an unsigned, non-notarized build).
+3. Launch, then grant Accessibility permission when prompted.
 
-Contributions are welcome. By submitting a pull request, you agree to the terms of the [Contributor License Agreement](CLA.md).
+Prefer to build it yourself from source? See [docs/Installation.md](docs/Installation.md).
 
 ## License
 
-[MIT](LICENSE) © Alex Schedrov
+[MIT](LICENSE) © Alex Schedrov - contributions welcome, see [CLA.md](CLA.md).
