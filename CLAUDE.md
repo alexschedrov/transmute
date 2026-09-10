@@ -31,13 +31,12 @@ The three system-integration services in `Services/` are the only places that to
 
 - **`HotkeyService`** — Global `CGEvent` tap for the trigger chord. Self-recovers from `tapDisabledBy*` and retries `tapCreate` up to 10× since it can only succeed *after* Accessibility is granted.
 - **`AccessibilityService.getSelectedText()`** — Tries the AX API first (non-destructive); only falls back to synthesizing ⌘C + polling `pasteboard.changeCount` + restoring the clipboard if AX fails. Preserve this ordering.
-- **`LLMService`** — Singleton, reads provider/key from `UserDefaults` on every call. Adding a provider requires touching four spots: `LLMProvider` enum, `buildXxxRequest`, `parseResponse` switch, `process()` switch.
+- **`LLMService`** — Singleton, reads provider/model selection from `UserDefaults` and the API key from `KeychainService` on every call. Adding a provider requires touching four spots: `LLMProvider` enum, `buildXxxRequest`, `parseResponse` switch, `process()` switch.
 
 `TransmutePanel` is a borderless `NSPanel` (`.screenSaver` level, non-activating) hosting a SwiftUI view, recreated per invocation. `TextAction` dispatches between `localTransform` closure and an LLM `prompt`; the catalog lives in `TextAction.builtIn`.
 
 ## Things to know
 
 - **Accessibility permission is load-bearing.** Rebuilding can invalidate it; the hotkey will silently stop working until re-granted. The retry loop in `HotkeyService` exists for this.
-- **API keys live in `UserDefaults`, not Keychain.** Known limitation, called out in `docs/Requirements.md`.
-- **Ollama is in the spec but not implemented** in `LLMProvider`/`LLMService`.
-- **`docs/Requirements.md` is the roadmap** — settings layout, custom commands, Ollama, Homebrew distribution all tracked there.
+- **API keys are stored in the macOS Keychain** via `KeychainService`, never in `UserDefaults` or plain text.
+- **Local LLMs work today** via any OpenAI-compatible server (Ollama, LM Studio, Jan, …) — see `LLMService.buildOllamaRequest`.
